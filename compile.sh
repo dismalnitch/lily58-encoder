@@ -3,6 +3,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+KEYBOARD="mechboards/lily58/pro"
+KEYMAP="lily58pro_enc"
+CONVERTER="helios"
+
+QMK_HOME="${QMK_HOME:-$HOME/qmk_firmware}"
+KEYMAP_DIR="$QMK_HOME/keyboards/$KEYBOARD/keymaps/$KEYMAP"
+
 if [[ $# -ge 1 ]]; then
     json="$1"
 else
@@ -18,15 +25,18 @@ fi
 echo "==> Generating keymap.c from $json"
 qmk json2c -o keymap.c "$json"
 
-echo "==> Compiling firmware (CONVERT_TO=helios)"
-qmk compile -e CONVERT_TO=helios "$json"
+echo "==> Installing keymap + encoder.inc into $KEYMAP_DIR"
+mkdir -p "$KEYMAP_DIR"
+cat keymap.c encoder.inc > "$KEYMAP_DIR/keymap.c"
+cp rules.mk config.h "$KEYMAP_DIR/"
 
-qmk_home="${QMK_HOME:-$HOME/qmk_firmware}"
+echo "==> Compiling firmware (CONVERT_TO=$CONVERTER)"
+qmk compile -kb "$KEYBOARD" -km "$KEYMAP" -e "CONVERT_TO=$CONVERTER"
 
-uf2=$(ls -t "$qmk_home"/*lily58*helios*.uf2 2>/dev/null | head -n 1)
+uf2=$(ls -t "$QMK_HOME"/*"$KEYMAP"*.uf2 2>/dev/null | head -n 1)
 if [[ -n "$uf2" ]]; then
     cp "$uf2" .
     echo "==> Copied $(basename "$uf2") to $(pwd)"
 else
-    echo "Warning: no .uf2 found in $qmk_home" >&2
+    echo "Warning: no .uf2 found in $QMK_HOME" >&2
 fi
